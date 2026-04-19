@@ -1,16 +1,31 @@
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
+const Joi = require("joi");
 
 const app = express();
-app.use(cors());
+
+/** Middleware */
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type"]
+}));
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// image upload setup
+/** Image upload setup */
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
 
-// games data
+/** Validation */
+const suggestionSchema = Joi.object({
+  title: Joi.string().min(3).required(),
+  description: Joi.string().allow("").required()
+});
+
+/** Games data */
 let games = [
   {
     title: "Rogue Lineage",
@@ -427,46 +442,95 @@ let games = [
   }
 ];
 
-// suggestions data
+
+
+/** Suggestions data */
 let suggestions = [];
 
-// get games
+/** Get games */
 app.get("/api/games", (req, res) => {
   res.json(games);
 });
 
-// get suggestions
+/** Get suggestions */
 app.get("/api/suggestions", (req, res) => {
   res.json(suggestions);
 });
 
-// add suggestion with image
+/** Add suggestion */
 app.post("/api/suggestions", upload.single("image"), (req, res) => {
-  const { title, description } = req.body;
+  try {
+    const { error } = suggestionSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
 
-  if (!title || title.length < 3) {
-    return res.status(400).json({ error: "Title must be at least 3 characters" });
+    if (!req.file) {
+      return res.status(400).json({ error: "Image required" });
+    }
+
+    const imageBase64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+
+    const newSuggestion = {
+      id: Date.now().toString(),
+      title: req.body.title,
+      description: req.body.description,
+      image: imageBase64
+    };
+
+    suggestions.push(newSuggestion);
+    res.json(newSuggestion);
+
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
   }
-
-  if (!req.file) {
-    return res.status(400).json({ error: "Image required" });
-  }
-
-  const imageBase64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
-
-  const newSuggestion = {
-    title,
-    description,
-    image: imageBase64
-  };
-
-  suggestions.push(newSuggestion);
-
-  res.json(newSuggestion);
 });
 
-// start server
+/** Edit suggestion */
+app.put("/api/suggestions/:id", (req, res) => {
+  try {
+    const { error } = suggestionSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const suggestion = suggestions.find(s => s.id === req.params.id);
+
+    if (!suggestion) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    suggestion.title = req.body.title;
+    suggestion.description = req.body.description;
+
+    res.json(suggestion);
+
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+/** Delete suggestion */
+app.delete("/api/suggestions/:id", (req, res) => {
+  try {
+    const index = suggestions.findIndex(s => s.id === req.params.id);
+
+    if (index === -1) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    suggestions.splice(index, 1);
+
+    res.json({ message: "Deleted" });
+
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+/** Start server */
 const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
 });
