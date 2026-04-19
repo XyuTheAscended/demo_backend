@@ -424,6 +424,8 @@ let games = [
   }
 ];
 
+let suggestions = [];
+
 const suggestionSchema = Joi.object({
   title: Joi.string().min(2).max(100).required(),
   description: Joi.string().min(5).max(500).required(),
@@ -438,6 +440,10 @@ app.get("/", (req, res) => {
 
 app.get("/api/games", (req, res) => {
   res.json(games);
+});
+
+app.get("/api/suggestions", (req, res) => {
+  res.json(suggestions);
 });
 
 app.get("/api/games/:title", (req, res) => {
@@ -464,14 +470,16 @@ app.post("/api/suggestions", (req, res) => {
     });
   }
 
-  const suggestion = {
-    title: req.body.title.trim(),
-    description: req.body.description.trim(),
-    price: req.body.price.trim(),
-    tags: req.body.tags.map((tag) => tag.trim().toLowerCase()),
-    image: req.body.image.trim(),
-    submittedAt: new Date().toISOString()
-  };
+ const suggestion = {
+  title: req.body.title.trim(),
+  description: req.body.description.trim(),
+  price: req.body.price.trim(),
+  tags: req.body.tags.map((tag) => tag.trim().toLowerCase()),
+  image: req.body.image.trim(),
+  submittedAt: new Date().toISOString()
+};
+suggestions.push(suggestion);
+
 
   console.log("\n===== NEW GAME SUGGESTION =====");
   console.log(suggestion);
