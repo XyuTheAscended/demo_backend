@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
 const Joi = require("joi");
+const mongoose = require("mongoose");
+
 const app = express();
 
 /** Middleware */
@@ -14,15 +16,35 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "public/uploads/");
-  }
+/** MongoDB */
 
-  
+mongoose
+  .connect(
+    "mongodb+srv://tylernormdb:tnormangoat@backend.bmj4mvh.mongodb.net/?appName=Backend"
+  )
+  .then(() => {
+    console.log("connected to mongodb");
+  })
+  .catch((error) => {
+    console.log("couldn't connect to mongodb", error);
+  });
+/** Multer (fixed) */
+const upload = multer({ storage: multer.memoryStorage() });
+
+/** Joi Validation */
+const suggestionSchemaJoi = Joi.object({
+  title: Joi.string().min(3).required(),
+  description: Joi.string().min(3).required()
 });
 
-const upload = multer({storage: storage});
+/** Mongoose Schema */
+const suggestionSchema = new mongoose.Schema({
+  title: String,
+  description: String,
+  image: String
+});
+
+const Suggestion = mongoose.model("Suggestion", suggestionSchema);
 
 let games = [
   {
@@ -440,25 +462,25 @@ let games = [
   }
 ];
 
-
-
-/** Suggestions data */
-let suggestions = [];
-
 /** Get games */
 app.get("/api/games", (req, res) => {
   res.json(games);
 });
 
 /** Get suggestions */
-app.get("/api/suggestions", (req, res) => {
-  res.json(suggestions);
+app.get("/api/suggestions", async (req, res) => {
+  try {
+    const suggestions = await Suggestion.find();
+    res.json(suggestions);
+  } catch {
+    res.status(500).json({ error: "Failed to fetch suggestions" });
+  }
 });
 
 /** Add suggestion */
-app.post("/api/suggestions", upload.single("image"), (req, res) => {
+app.post("/api/suggestions", upload.single("image"), async (req, res) => {
   try {
-    const { error } = suggestionSchema.validate(req.body);
+    const { error } = suggestionSchemaJoi.validate(req.body);
     if (error) {
       return res.status(400).json({ error: error.details[0].message });
     }
@@ -469,60 +491,59 @@ app.post("/api/suggestions", upload.single("image"), (req, res) => {
 
     const imageBase64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
 
-    const newSuggestion = {
-      id: Date.now().toString(),
+    const newSuggestion = new Suggestion({
       title: req.body.title,
       description: req.body.description,
       image: imageBase64
-    };
+    });
 
-    suggestions.push(newSuggestion);
+    await newSuggestion.save();
+
     res.json(newSuggestion);
-
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Server error" });
   }
 });
 
 /** Edit suggestion */
-app.put("/api/suggestions/:id", (req, res) => {
+app.put("/api/suggestions/:id", async (req, res) => {
   try {
-    const { error } = suggestionSchema.validate(req.body);
+    const { error } = suggestionSchemaJoi.validate(req.body);
     if (error) {
       return res.status(400).json({ error: error.details[0].message });
     }
 
-    const suggestion = suggestions.find(s => s.id === req.params.id);
+    const updated = await Suggestion.findByIdAndUpdate(
+      req.params.id,
+      {
+        title: req.body.title,
+        description: req.body.description
+      },
+      { new: true }
+    );
 
-    if (!suggestion) {
+    if (!updated) {
       return res.status(404).json({ error: "Not found" });
     }
 
-    suggestion.title = req.body.title;
-    suggestion.description = req.body.description;
-
-    res.json(suggestion);
-
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
+    res.json(updated);
+  } catch {
+    res.status(500).json({ error: "Update failed" });
   }
 });
 
 /** Delete suggestion */
-app.delete("/api/suggestions/:id", (req, res) => {
+app.delete("/api/suggestions/:id", async (req, res) => {
   try {
-    const index = suggestions.findIndex(s => s.id === req.params.id);
+    const deleted = await Suggestion.findByIdAndDelete(req.params.id);
 
-    if (index === -1) {
+    if (!deleted) {
       return res.status(404).json({ error: "Not found" });
     }
 
-    suggestions.splice(index, 1);
-
     res.json({ message: "Deleted" });
-
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
+  } catch {
+    res.status(500).json({ error: "Delete failed" });
   }
 });
 
