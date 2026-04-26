@@ -2,7 +2,6 @@ const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
 const Joi = require("joi");
-
 const app = express();
 
 /** Middleware */
@@ -15,17 +14,16 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-/** Image upload setup */
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "public/uploads/");
+  }
 
-/** Validation */
-const suggestionSchema = Joi.object({
-  title: Joi.string().min(3).required(),
-  description: Joi.string().allow("").required()
+  
 });
 
-/** Games data */
+const upload = multer({storage: storage});
+
 let games = [
   {
     title: "Rogue Lineage",

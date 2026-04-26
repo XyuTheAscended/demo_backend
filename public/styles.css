@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /* ===== RESET ===== */
 body {
   margin: 0;
@@ -59,4 +60,13 @@ body {
 h1, h2, p {
   width: 100%;
   max-width: 600px;
+=======
+h1{
+    color:peru;
+}
+
+a{
+    text-decoration: none;
+    color: firebrick;
+>>>>>>> cf706a4 (a)
 }
