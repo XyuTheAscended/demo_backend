@@ -3,6 +3,7 @@ const cors = require("cors");
 const multer = require("multer");
 const Joi = require("joi");
 const mongoose = require("mongoose");
+const path = require("path");
 
 const app = express();
 
@@ -16,8 +17,10 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-/** MongoDB */
+/** Serve static files */
+app.use(express.static(path.join(__dirname, "public")));
 
+/** MongoDB */
 mongoose
   .connect(
     "mongodb+srv://tylernormdb:tnormangoat@backend.bmj4mvh.mongodb.net/?appName=Backend"
@@ -28,7 +31,8 @@ mongoose
   .catch((error) => {
     console.log("couldn't connect to mongodb", error);
   });
-/** Multer (fixed) */
+
+/** Multer */
 const upload = multer({ storage: multer.memoryStorage() });
 
 /** Joi Validation */
@@ -46,6 +50,7 @@ const suggestionSchema = new mongoose.Schema({
 
 const Suggestion = mongoose.model("Suggestion", suggestionSchema);
 
+/** Games */
 let games = [
   {
     title: "Rogue Lineage",
@@ -462,6 +467,8 @@ let games = [
   }
 ];
 
+/** API ROUTES */
+
 /** Get games */
 app.get("/api/games", (req, res) => {
   res.json(games);
@@ -498,7 +505,6 @@ app.post("/api/suggestions", upload.single("image"), async (req, res) => {
     });
 
     await newSuggestion.save();
-
     res.json(newSuggestion);
   } catch {
     res.status(500).json({ error: "Server error" });
@@ -508,11 +514,6 @@ app.post("/api/suggestions", upload.single("image"), async (req, res) => {
 /** Edit suggestion */
 app.put("/api/suggestions/:id", async (req, res) => {
   try {
-    const { error } = suggestionSchemaJoi.validate(req.body);
-    if (error) {
-      return res.status(400).json({ error: error.details[0].message });
-    }
-
     const updated = await Suggestion.findByIdAndUpdate(
       req.params.id,
       {
@@ -545,6 +546,11 @@ app.delete("/api/suggestions/:id", async (req, res) => {
   } catch {
     res.status(500).json({ error: "Delete failed" });
   }
+});
+
+/** ROOT ROUTE (loads your HTML) */
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 /** Start server */
