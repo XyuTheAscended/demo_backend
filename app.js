@@ -467,11 +467,24 @@ let games = [
   }
 ];
 
-/** API ROUTES */
 
 /** Get games */
 app.get("/api/games", (req, res) => {
   res.json(games);
+});
+
+app.get("/api/games/:title", (req, res) => {
+  const gameTitle = decodeURIComponent(req.params.title);
+
+  const game = games.find(
+    (g) => g.title.toLowerCase() === gameTitle.toLowerCase()
+  );
+
+  if (!game) {
+    return res.status(404).json({ error: "Game not found" });
+  }
+
+  res.json(game);
 });
 
 /** Get suggestions */
